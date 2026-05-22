@@ -1,0 +1,22 @@
+[package]
+name = "math-daily"
+version = "1.0.0"
+description = "口算天天练 — 100以内加减乘除交互式心算练习"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "math_daily"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tracing = "0.1"
+tauri-plugin-log = "2"
+
+# 依赖包编译优化：统一使用较高并行度
+[profile.release.package."*"]
+codegen-units = 1

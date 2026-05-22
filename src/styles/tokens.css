@@ -1,0 +1,93 @@
+/* ==========================================================================
+   🎨 Design Tokens — 设计系统
+   基于 8dp 基准网格 · 6 级字号阶梯 · 60-30-10 配色法则
+   ========================================================================== */
+
+/* ── 间距系统 (8dp 网格) ── */
+:root {
+  --space-2:   2px;   /* 微调 —— 唯一非 8dp 值 */
+  --space-4:   4px;
+  --space-8:   8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+}
+
+/* ── 6 级字号阶梯 + 流体缩放 ── */
+:root {
+  --text-h1:       clamp(2rem,   5vw, 3rem);     /* 32–48px */
+  --text-h2:       clamp(1.5rem, 3vw, 2rem);     /* 24–32px */
+  --text-h3:       clamp(1.25rem,2vw, 1.5rem);   /* 20–24px */
+  --text-h4:       clamp(1.125rem,1.8vw,1.25rem);/* 18–20px */
+  --text-body:     clamp(0.875rem,1.5vw,1rem);   /* 14–16px */
+  --text-small:    clamp(0.75rem,1.2vw,0.875rem);/* 12–14px */
+  --text-caption:  0.75rem;                      /* 12px 固定 */
+
+  --font-sans: 'Inter', 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+/* ── 灰度色阶 (10 级) ── */
+:root {
+  --gray-50:  #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #eeeeee;
+  --gray-300: #e0e0e0;
+  --gray-400: #bdbdbd;
+  --gray-500: #9e9e9e;
+  --gray-600: #757575;
+  --gray-700: #616161;
+  --gray-800: #424242;
+  --gray-900: #212121;
+}
+
+/* ── 语义色体系 ── */
+:root {
+  --color-success:       #4caf50;
+  --color-success-soft:  rgba(76, 175, 80, 0.12);
+  --color-success-glow:  rgba(76, 175, 80, 0.25);
+
+  --color-error:         #e57373;
+  --color-error-soft:    rgba(229, 115, 115, 0.12);
+  --color-error-glow:    rgba(229, 115, 115, 0.25);
+
+  --color-warning:       #ffb74d;
+  --color-warning-soft:  rgba(255, 183, 77, 0.12);
+  --color-warning-glow:  rgba(255, 183, 77, 0.25);
+
+  --color-info:          #64b5f6;
+  --color-info-soft:     rgba(100, 181, 246, 0.12);
+  --color-info-glow:     rgba(100, 181, 246, 0.25);
+}
+
+/* ── 圆角系统 ── */
+:root {
+  --radius-sm:   8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  24px;
+  --radius-2xl: 28px;
+  --radius-3xl: 36px;
+  --radius-full: 9999px;
+}
+
+/* ── 阴影系统 ── */
+:root {
+  --shadow-sm:  0 2px 8px  rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.10);
+  --shadow-xl:  0 20px 48px rgba(0,0,0,0.12);
+}
+
+/* ── 动效时长 ── */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast:   150ms;
+  --duration-normal: 250ms;
+  --duration-slow:   400ms;
+}

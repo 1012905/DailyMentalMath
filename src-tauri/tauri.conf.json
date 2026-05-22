@@ -1,0 +1,39 @@
+{
+  "productName": "口算天天练",
+  "version": "1.0.0",
+  "identifier": "com.mathsprint.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1422",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "口算天天练",
+        "width": 860,
+        "height": 780,
+        "minWidth": 380,
+        "minHeight": 560,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "windows": {
+      "wix": {},
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {}
+}

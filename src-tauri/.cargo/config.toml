@@ -1,0 +1,21 @@
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "linker=lld-link"]
+
+[build]
+# 并行编译任务数（0 = CPU 核数自动检测）
+jobs = 0
+# 启用增量编译（加速二次构建）
+incremental = true
+
+[profile.dev]
+# 完整调试信息（支持变量 inspect）+ 极致并行
+debug = 2
+codegen-units = 256
+
+# release：极致运行性能
+[profile.release]
+opt-level = 3
+debug = 0
+codegen-units = 1
+strip = "symbols"
+lto = "fat"
