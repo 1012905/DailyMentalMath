@@ -2,8 +2,7 @@
 rustflags = ["-C", "linker=lld-link"]
 
 [build]
-# 并行编译任务数（0 = CPU 核数自动检测）
-jobs = 0
+# 并行编译任务数（留空 = 自动检测 CPU 核数）
 # 启用增量编译（加速二次构建）
 incremental = true
 
