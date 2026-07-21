@@ -110,4 +110,12 @@ export default {
 
   needOperator: "Please select at least one operator",
   noQuestions: "Please select at least one operator",
+
+  leaderboardTitle: "🏆 Local Stats",
+  leaderboardEmpty: "View stats after practice",
+  leaderboardOverallAcc: "Overall Accuracy",
+  leaderboardBestAcc: "Best Accuracy",
+  leaderboardTotalSessions: "Total Sessions",
+  leaderboardCountUnit: "times",
+  leaderboardQuestionUnit: "questions",
 };

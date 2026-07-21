@@ -1,10 +1,11 @@
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import { viteSingleFile } from "vite-plugin-singlefile";
 
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [solid(), viteSingleFile()],
   clearScreen: false,
 
   build: {
@@ -14,6 +15,7 @@ export default defineConfig({
     rollupOptions: {
       cache: true,
     },
+    assetsInlineLimit: 100000000, // Inline all assets
   },
 
   server: {

@@ -110,4 +110,12 @@ export default {
 
   needOperator: "请至少选择一种运算符",
   noQuestions: "请至少选择一种运算符",
+
+  leaderboardTitle: "🏆 本地统计",
+  leaderboardEmpty: "完成练习后查看统计",
+  leaderboardOverallAcc: "总正确率",
+  leaderboardBestAcc: "最佳正确率",
+  leaderboardTotalSessions: "总练习次数",
+  leaderboardCountUnit: "次",
+  leaderboardQuestionUnit: "题",
 };

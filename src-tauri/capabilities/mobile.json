@@ -1,0 +1,9 @@
+{
+  "identifier": "mobile",
+  "description": "Mobile platform capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:default"
+  ]
+}

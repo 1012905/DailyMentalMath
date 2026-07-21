@@ -32,16 +32,7 @@
 
 - 逐次练习的准确率、平均耗时、连续答对
 - 最近 10 次准确率 & 用时趋势柱状图
-- 社区排行榜（可选登录同步）
-
-### 🔐 云同步
-
-基于 Supabase 的用户认证 & 数据同步：
-
-- `practice_sessions` — 练习记录云端备份
-- `achievements` — 成就进度跨设备同步
-- `daily_scores` — 每日挑战排行榜
-- `community_posts` — 社区分享
+- 最近练习趋势图表
 
 ### 🌐 国际化
 
@@ -56,7 +47,7 @@
 |----|------|
 | 前端框架 | [Solid.js](https://www.solidjs.com/) + [Vite 6](https://vitejs.dev/) |
 | 桌面壳 | [Tauri 2](https://v2.tauri.app/) (Rust) |
-| 后端 | [Supabase](https://supabase.com/) (Auth + PostgreSQL) |
+| 后端 | 无（纯本地 localStorage） |
 | 测试 | [Vitest](https://vitest.dev/) |
 | 样式 | LightningCSS + CSS 自定义属性主题系统 |
 
@@ -81,18 +72,7 @@ npm run tauri build
 npm test
 ```
 
-### 环境变量
-
-创建 `.env` 文件（参考 `.env.example`）:
-
-```
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-### 数据库初始化
-
-在 Supabase SQL Editor 中执行 `supabase-schema.sql` 创建所需表与 Row-Level Security 策略。
+纯本地应用，无需后端服务。所有数据存储在浏览器 localStorage 中。
 
 ---
 
@@ -123,10 +103,7 @@ DailyMentalMath/
 │   └── src/
 │       ├── main.rs         # 桌面入口
 │       └── lib.rs          # Tauri 插件注册
-├── shared/                 # 跨项目共享
-│   ├── supabase.js         # Supabase 客户端 & API
-│   └── components/AuthModal.jsx
-└── supabase-schema.sql     # 数据库建表脚本
+└── package.json            # 依赖与脚本
 ```
 
 ---

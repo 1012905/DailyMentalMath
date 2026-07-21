@@ -9,10 +9,8 @@ import usePractice, { loadErrorBank, loadStatsHistory, loadAchievements, loadStr
 import { t } from "./lib/i18n.js";
 import { useTheme } from "./hooks/useTheme.js";
 import { useLocale } from "./hooks/useLocale.js";
-import AuthModal from "../shared/components/AuthModal.jsx";
 import ProgressDashboard from "./components/ProgressDashboard.jsx";
 import LeaderboardPanel from "./components/LeaderboardPanel.jsx";
-import { getCurrentUser, onAuthStateChanged, savePracticeSession, syncAchievements, isSupabaseReady } from "../shared/supabase.js";
 
 const ACHIEVEMENT_DEFS = [
   { id: "streak-7", emoji: "🔥", labelKey: "achvStreak7", descKey: "achvStreak7Desc" },
@@ -34,15 +32,6 @@ export default function App() {
   const [questionCount, setQuestionCount] = createSignal(10);
   const [selectedMode, setSelectedMode] = createSignal("free");
   const [newAchvToast, setNewAchvToast] = createSignal("");
-  const [user, setUser] = createSignal(null);
-  const [lastSession, setLastSession] = createSignal(null);
-
-  // Initialize auth
-  createEffect(() => {
-    getCurrentUser().then(setUser);
-    const unsub = onAuthStateChanged((u) => setUser(u));
-    return unsub;
-  });
 
   const practice = usePractice();
 
@@ -74,33 +63,6 @@ export default function App() {
 
   const handleEnd = () => {
     practice.endSession();
-    // Save session data for leaderboard
-    const sessionData = {
-      correct: practice.correct(),
-      answered: practice.answered(),
-      accuracy: practice.answered() > 0 ? practice.correct() / practice.answered() : 0,
-      avgTime: practice.answered() > 0 ? practice.totalTime() / practice.answered() : 0,
-      mode: practice.mode(),
-    };
-    setLastSession(sessionData);
-    // Cloud sync if logged in
-    if (user() && isSupabaseReady()) {
-      const stats = loadStatsHistory();
-      const lastStat = stats[stats.length - 1];
-      if (lastStat) {
-        savePracticeSession({
-          user_id: user().id,
-          date: new Date().toISOString(),
-          mode: lastStat.mode,
-          total: lastStat.total,
-          correct: lastStat.correct,
-          accuracy: lastStat.accuracy,
-          avg_time: lastStat.avgTime,
-          max_streak: lastStat.maxStreak,
-        }).catch(console.warn);
-      }
-      syncAchievements(user().id, loadAchievements()).catch(console.warn);
-    }
     setPage("results");
   };
 
@@ -153,13 +115,6 @@ export default function App() {
           <span class="achv-toast-text">{newAchvToast()}</span>
         </div>
       </Show>
-
-      {/* ── Auth / 用户系统 ── */}
-      <AuthModal
-        user={user()}
-        onLogin={(u) => setUser(u)}
-        onLogout={() => setUser(null)}
-      />
 
       {/* ── Achievement Panel (enhanced with progress) ── */}
       <div class="section-card achv-panel">
@@ -322,12 +277,13 @@ export default function App() {
         </div>
 
         <HistoryPanel
+          visible={true}
           history={practice.history()}
           lang={lang()}
         />
 
-        {/* Leaderboard (community) */}
-        <LeaderboardPanel lang={lang()} user={user()} lastSession={lastSession()} />
+        {/* 本地统计面板 */}
+        <LeaderboardPanel lang={lang()} />
 
         {/* Daily Challenge extras */}
         <Show when={practice.mode() === "daily"}>
