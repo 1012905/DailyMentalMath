@@ -38,10 +38,25 @@ export default function PracticePanel(props) {
 
   const progressPct = () => props.total > 0 ? (props.index / props.total) * 100 : 0;
 
-  /* 已答满设定题数：再点「下一题」不会出新题（状态机在 total 处停住），
-     所以这里直接禁用并改文案，避免用户对着无反应的按钮反复点击。
+  /* 已答满设定题数：再点「下一题」不会出新题（状态机在 total 处停住）。
      限时模式的 total 是 9999 占位，不会触发。 */
   const reachedLimit = () => props.total > 0 && props.index >= props.total;
+
+  /* ── 主按钮三态：提交 → 下一题 → 查看结果（同一个按钮，位置不变） ──
+     还没作答（输入框可用）= 提交；答完（输入框 disabled）= 下一题；
+     答满设定题数或本轮已结束（限时到点）= 查看结果 —— 用户始终按同一个位置，
+     和「回车提交、再回车切题」的手感保持一致。 */
+  const sessionDone = () => props.isFinished || reachedLimit();
+
+  const primaryAction = () => {
+    if (sessionDone()) {
+      return { label: t(props.lang, "viewResultBtn"), disabled: false, onClick: props.onEnd };
+    }
+    if (props.inputDisabled) {
+      return { label: t(props.lang, "nextBtn"), disabled: props.nextDisabled, onClick: props.onNext };
+    }
+    return { label: t(props.lang, "submitBtn"), disabled: props.submitDisabled, onClick: props.onSubmit };
+  };
 
   // Streak fire animation
   const streakClass = () => {
@@ -138,12 +153,16 @@ export default function PracticePanel(props) {
           disabled={props.inputDisabled}
           readOnly={isTouch()}
         />
+        {/* Solid 只在创建时求值一次 onClick，所以按下时才读 primaryAction()，
+            按钮才能跟着「提交 → 下一题 → 查看结果」切动作 */}
         <button
           class="glass-btn"
-          onClick={props.onSubmit}
-          disabled={props.submitDisabled}
+          classList={{ "is-accent": props.inputDisabled || sessionDone() }}
+          onClick={() => primaryAction().onClick()}
+          disabled={primaryAction().disabled}
+          aria-live="polite"
         >
-          {t(props.lang, "submitBtn")}
+          {primaryAction().label}
         </button>
       </div>
 
@@ -182,24 +201,14 @@ export default function PracticePanel(props) {
         </div>
       </Show>
 
-      {/* ── 操作按钮 ── */}
-      <div class="btn-row">
-        {/* 答满设定题数时，这个按钮不再是「下一题」（点了也不会出新题），
-            直接变成可点的「查看结果」，避免出现「文案承诺动作但按钮被禁用」。 */}
-        <Show
-          when={reachedLimit()}
-          fallback={
-            <button class="btn-secondary" onClick={props.onNext} disabled={props.nextDisabled}>
-              {t(props.lang, "nextBtn")}
-            </button>
-          }
-        >
-          <button class="btn-primary" onClick={props.onEnd}>
-            {t(props.lang, "viewResultBtn")}
-          </button>
-        </Show>
-        <button class="btn-secondary" onClick={props.onEnd}>{t(props.lang, "endBtn")}</button>
-      </div>
+      {/* ── 操作按钮：主操作已并入上方作答区的同一个按钮，
+          这里只保留「提前结束」；本轮结束（答满/时间到）时它和「查看结果」
+          是同一个动作，整行藏掉，避免两个按钮做同一件事。 ── */}
+      <Show when={!sessionDone()}>
+        <div class="btn-row">
+          <button class="btn-secondary" onClick={props.onEnd}>{t(props.lang, "endBtn")}</button>
+        </div>
+      </Show>
     </section>
   );
 }

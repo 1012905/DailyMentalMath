@@ -1,11 +1,11 @@
-import { createSignal, createEffect, onMount, Show, For, lazy, Suspense } from "solid-js";
+import { createSignal, createEffect, onMount, onCleanup, Show, For, lazy, Suspense } from "solid-js";
 import Header from "./components/Header.jsx";
 const SettingsPanel = lazy(() => import("./components/SettingsPanel.jsx"));
 const PracticePanel = lazy(() => import("./components/PracticePanel.jsx"));
 const StatsPanel = lazy(() => import("./components/StatsPanel.jsx"));
 const HistoryPanel = lazy(() => import("./components/HistoryPanel.jsx"));
 import SkeletonPage from "./components/Skeleton.jsx";
-import usePractice, { loadErrorBank, loadStatsHistory, loadAchievements, loadStreakDays } from "./hooks/usePractice.js";
+import usePractice, { loadErrorBank, loadStatsHistory, loadAchievements, loadStreakDays, clearStatsHistory } from "./hooks/usePractice.js";
 import { t } from "./lib/i18n.js";
 import { useTheme } from "./hooks/useTheme.js";
 import { useLocale } from "./hooks/useLocale.js";
@@ -129,6 +129,50 @@ export default function App() {
     setPage("practice");
   };
 
+  /* ── 回车流：第一下回车提交，答完题（输入框 disabled、焦点落回 body）后再按回车 = 下一题 ──
+     原来监听挂在 .glass-panel 上，输入框一 disabled 焦点就不在它内部，事件再也冒不上来，
+     于是「答完再回车」毫无反应。改到 document 级后焦点在哪都能收到。 */
+  const reachedLimit = () => practice.total() > 0 && practice.index() >= practice.total();
+
+  const handleNext = () => {
+    // 与面板按钮保持一致：答满设定题数后，这个动作是「查看结果」而不是出新题
+    if (reachedLimit()) handleEnd();
+    else practice.nextQuestion();
+  };
+
+  onMount(() => {
+    const onEnter = (e) => {
+      if (e.key !== "Enter" || e.repeat || e.isComposing || e.defaultPrevented) return;
+      if (page() !== "practice") return;
+      // 焦点在按钮/链接上时交给浏览器原生激活，避免一次按键触发两遍
+      const tag = e.target && e.target.tagName;
+      if (tag === "BUTTON" || tag === "A") return;
+      e.preventDefault();
+      if (!practice.inputDisabled()) practice.submitAnswer();
+      else if (!practice.nextDisabled()) handleNext();
+    };
+    document.addEventListener("keydown", onEnter);
+    onCleanup(() => document.removeEventListener("keydown", onEnter));
+  });
+
+  /* ── 重置历史记录：两步确认（不用 confirm() —— Tauri 的部分 WebView 不弹系统对话框） ── */
+  const [resetArmed, setResetArmed] = createSignal(false);
+  let resetArmTimer = null;
+
+  const handleResetHistory = () => {
+    if (!resetArmed()) {
+      setResetArmed(true);
+      if (resetArmTimer) clearTimeout(resetArmTimer);
+      resetArmTimer = setTimeout(() => setResetArmed(false), 5000);
+      return;
+    }
+    if (resetArmTimer) { clearTimeout(resetArmTimer); resetArmTimer = null; }
+    setResetArmed(false);
+    clearStatsHistory();
+  };
+
+  onCleanup(() => { if (resetArmTimer) clearTimeout(resetArmTimer); });
+
   /* ── 首页统计（只读 localStorage，不改变逻辑） ── */
   const stats = () => loadStatsHistory();
   const totalSessions = () => stats().length;
@@ -158,13 +202,7 @@ export default function App() {
   };
 
   return (
-    <div
-      class="glass-panel"
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && page() === "practice" && !practice.inputDisabled()) practice.submitAnswer();
-        else if (e.key === "Enter" && page() === "practice" && !practice.nextDisabled()) practice.nextQuestion();
-      }}
-    >
+    <div class="glass-panel">
       <Header
         isDark={isDark()}
         onToggleTheme={toggleTheme}
@@ -272,7 +310,17 @@ export default function App() {
         {/* ── 学习进度 ── */}
         <Show when={totalSessions() > 0}>
           <div class="section-card">
-            <div class="section-title">{t(lang(), "statsTitle")}</div>
+            <div class="section-title">
+              <span>{t(lang(), "statsTitle")}</span>
+              <button
+                type="button"
+                class="title-action"
+                classList={{ "is-armed": resetArmed() }}
+                onClick={handleResetHistory}
+              >
+                {t(lang(), resetArmed() ? "resetHistoryConfirmBtn" : "resetHistoryBtn")}
+              </button>
+            </div>
             <ProgressDashboard lang={lang()} />
           </div>
         </Show>
@@ -371,10 +419,11 @@ export default function App() {
           inputDisabled={practice.inputDisabled()}
           submitDisabled={practice.submitDisabled()}
           nextDisabled={practice.nextDisabled()}
+          isFinished={practice.isFinished()}
           answerValue={practice.answerValue()}
           onAnswerInput={practice.setAnswerValue}
           onSubmit={practice.submitAnswer}
-          onNext={practice.nextQuestion}
+          onNext={handleNext}
           onEnd={handleEnd}
           mode={practice.mode()}
           timeLeft={practice.timeLeft()}

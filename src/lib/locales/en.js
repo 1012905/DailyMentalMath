@@ -147,6 +147,9 @@ export default {
   modeNameTimed: "Timed",
   modeNameDaily: "Daily",
   modeNameError: "Error review",
+  // ── Reset history (right of the Practice Stats title on home) ──
+  resetHistoryBtn: "Reset history",
+  resetHistoryConfirmBtn: "Click again to clear",
   // ── Mistake explanations (must be English in the English UI) ──
   explainAdd: "{0} + {1} = {2}, because {0} plus {1} equals {2}",
   explainSub: "{0} - {1} = {2}, because {1} plus {2} equals {0}",

@@ -55,6 +55,15 @@ UA = (
 )
 CSS_URL = "https://fonts.googleapis.com/css2?family={family}&display=swap&text={text}"
 
+# Google's css2 endpoint silently IGNORES `text=` once the parameter carries
+# more than ~800 characters and answers with the default ~101 unicode-range
+# slices instead (measured 2026-09: 800 chars → 1 face, 801 chars → 101 faces).
+# fetch_face() then used to vendor ONE of those slices — a 4 kB, 13-glyph file —
+# as if it were the whole subset, which would replace a 180 kB font with
+# something that covers almost nothing. Keep the payload under the limit and
+# treat "Google ignored text=" as a hard failure (see fetch_face).
+GOOGLE_TEXT_LIMIT = 780
+
 CJK_RANGES = (
     (0x2E80, 0x2EFF),   # CJK Radicals Supplement
     (0x3000, 0x303F),   # CJK punctuation （）《》、。
@@ -128,6 +137,10 @@ def collect_charset() -> tuple[set[str], set[str]]:
         if pattern == "*.html":
             targets.append(INDEX_HTML)
         for path in targets:
+            # 测试文件不进产物（没人 import 它们），用例名/注释里的中文
+            # 不该占用 Google text= 那 800 个字符的预算。
+            if ".test." in path.name:
+                continue
             try:
                 chars.update(path.read_text(encoding="utf-8"))
             except (OSError, UnicodeDecodeError):
@@ -156,6 +169,24 @@ def build_texts() -> tuple[str, str]:
     # served from this family before, and it silently ignores the rest (emoji
     # live in the system emoji font either way).
     noto = set(non_ascii) | set(SAFETY_HANZI)
+    if len(inter) > GOOGLE_TEXT_LIMIT or len(non_ascii) > GOOGLE_TEXT_LIMIT:
+        raise SystemExit(
+            f"src/ uses {len(non_ascii)} non-ASCII chars — over Google's "
+            f"~{GOOGLE_TEXT_LIMIT}-char text= limit, so a single css2 request "
+            "can no longer cover it (the payload would have to be split and "
+            "the fonts merged)."
+        )
+    if len(noto) > GOOGLE_TEXT_LIMIT:
+        # 源码真正出现的字符优先：预算不够就按序砍安全词表，
+        # 少掉的字由 `python scripts/fetch-fonts.py --verify` 报出来，不会静默漏字。
+        keep = GOOGLE_TEXT_LIMIT - len(non_ascii)
+        trimmed = sorted(set(SAFETY_HANZI) - non_ascii)[:keep]
+        noto = set(non_ascii) | set(trimmed)
+        print(
+            f"    note: SAFETY_HANZI trimmed to {len(trimmed)} extra chars "
+            f"to stay inside the {GOOGLE_TEXT_LIMIT}-char text= limit",
+            file=sys.stderr,
+        )
     return "".join(sorted(inter)), "".join(sorted(noto))
 
 
@@ -193,6 +224,13 @@ def fetch_face(family_query: str, text: str) -> tuple[str, str]:
     )
     if not faces:
         raise RuntimeError(f"no @font-face returned for {family_query}")
+    if len(faces) > 1:
+        # text= 被忽略了：返回的是默认 unicode-range 分片（101 片）。
+        # 继续走下去会把其中一片当成完整子集存下来 —— 直接失败。
+        raise RuntimeError(
+            f"Google ignored text= for {family_query}: got {len(faces)} "
+            f"unicode-range slices instead of 1 subset face"
+        )
     src = re.search(r"url\((https://[^)]+)\)\s*format\('woff2'\)", faces[0])
     weight = re.search(r"font-weight:\s*([^;]+);", faces[0])
     if not src:

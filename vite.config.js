@@ -8,7 +8,9 @@ export default defineConfig({
   // 相对路径：构建产物可直接托管在任意子路径下
   // （GitHub Pages 项目站点位于 /<repo>/ 而非域名根目录）
   base: "./",
-  plugins: [solid(), viteSingleFile()],
+  // vitest 下关掉 solid-refresh 注入：它产出的 file:///@solid-refresh 模块
+  // 解析不了，会让组件测试直接挂掉（dev/build 不受影响，VITEST 由 vitest 自动设置）
+  plugins: [solid({ hot: !process.env.VITEST }), viteSingleFile()],
   clearScreen: false,
 
   build: {

@@ -331,6 +331,35 @@ a:focus-visible,
   background: var(--glass-border);
 }
 
+/* 卡片标题右侧的小操作按钮（重置历史记录）—— order 让它排到分隔线之后，
+   视觉上是「标题 ————————— [按钮]」 */
+.title-action {
+  order: 1;
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-md);
+  border: var(--hairline) solid var(--glass-border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;   /* 覆盖 .section-title 继承下来的 uppercase */
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast),
+              color var(--duration-fast), transform var(--duration-fast) var(--ease-out-expo);
+}
+.title-action:hover { background: var(--surface-2); border-color: var(--border-strong); color: var(--text-primary); }
+.title-action:active { transform: scale(0.97); }
+/* 两步确认：第一次点击后进入待确认态，5 秒不点自动还原 */
+.title-action.is-armed {
+  color: var(--error-color);
+  border-color: var(--error-color);
+  background: var(--color-error-soft);
+}
+
 /* 可折叠的成就区标题（本身是按钮） */
 .achv-toggle {
   width: 100%;
@@ -431,6 +460,7 @@ a:focus-visible,
   font-size: var(--text-small);
   font-weight: 600;
   transition: background var(--duration-fast), border-color var(--duration-fast),
+              filter var(--duration-fast), color var(--duration-fast),
               transform var(--duration-fast) var(--ease-out-expo);
 }
 .btn-secondary:hover:not(:disabled),
@@ -439,6 +469,20 @@ a:focus-visible,
 .glass-btn:active:not(:disabled) { transform: scale(0.985); }
 .btn-secondary:disabled,
 .glass-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+/* 提交 → 下一题 / 查看结果 是同一个按钮（见 PracticePanel primaryAction）。
+   作答结束后它换动作也换配色，给「主操作已经推进了」一个视觉提示。 */
+.glass-btn.is-accent {
+  background: var(--accent-solid);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+.glass-btn.is-accent:hover:not(:disabled) {
+  background: var(--accent-solid);
+  border-color: transparent;
+  filter: brightness(1.07);
+}
+.glass-btn.is-accent:active:not(:disabled) { filter: brightness(0.95); }
 
 .btn-row {
   display: flex;
@@ -752,7 +796,7 @@ a:focus-visible,
 .answer-input.correct-flash { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
 .answer-input.wrong-flash   { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
 
-.answer-area .glass-btn { flex-shrink: 0; min-width: 84px; min-height: 60px; font-size: var(--text-body); }
+.answer-area .glass-btn { flex-shrink: 0; min-width: 84px; min-height: 60px; font-size: var(--text-body); white-space: nowrap; }
 
 /* 反馈 */
 .feedback {

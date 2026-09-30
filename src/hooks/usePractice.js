@@ -38,12 +38,29 @@ function saveJSON(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
+/* ── 练习历史（dmm-stats-history）的响应式版本号 ──
+   Solid 组件只渲染一次，localStorage 又不是信号，所以直接读它拿不到更新。
+   任何写入/清空历史的地方 bump 一下，所有在渲染里读 loadStatsHistory() 的
+   统计（首页 Hero、学习进度、趋势图、排行榜）就会跟着重算。 */
+const [statsRev, setStatsRev] = createSignal(0);
+
+function bumpStatsRev() {
+  setStatsRev((v) => v + 1);
+}
+
 export function loadErrorBank() {
   return loadJSON(ERRORS_KEY, []);
 }
 
 export function loadStatsHistory() {
+  statsRev(); // 订阅：历史被清空/追加时让读它的统计组件重算
   return loadJSON(STATS_KEY, []);
+}
+
+/** 清空练习历史记录（首页统计 / 趋势图 / 排行榜共用同一份数据） */
+export function clearStatsHistory() {
+  try { localStorage.removeItem(STATS_KEY); } catch {}
+  bumpStatsRev();
 }
 
 export function loadAchievements() {
@@ -294,6 +311,8 @@ export default function usePractice() {
 
   // ── end session ──
   function endSession() {
+    // 幂等：限时到点时已经结算过一次，之后再点「查看结果」不能重复写一条历史记录
+    if (isFinished()) return;
     clearTimer();
     setInputDisabled(true);
     setSubmitDisabled(true);
@@ -318,6 +337,7 @@ export default function usePractice() {
     const stats = loadStatsHistory();
     stats.push(newStat);
     saveJSON(STATS_KEY, stats.slice(-15));
+    bumpStatsRev(); // 让已挂载的统计视图同步刷新
 
     // Save errors
     const wrong = wrongQuestions();

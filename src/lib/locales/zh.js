@@ -147,6 +147,9 @@ export default {
   modeNameTimed: "限时冲刺",
   modeNameDaily: "每日挑战",
   modeNameError: "错题重练",
+  // ── 重置历史记录（首页「练习统计」卡片标题右侧，两步确认） ──
+  resetHistoryBtn: "重置历史记录",
+  resetHistoryConfirmBtn: "再点一次确认清空",
   // ── 错题解析（英文界面必须走英文） ──
   explainAdd: "{0} + {1} = {2}，因为 {0} 加 {1} 等于 {2}",
   explainSub: "{0} - {1} = {2}，因为 {1} 加 {2} 等于 {0}",
