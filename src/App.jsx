@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Show, For, lazy, Suspense } from "solid-js";
+import { createSignal, createEffect, onMount, Show, For, lazy, Suspense } from "solid-js";
 import Header from "./components/Header.jsx";
 const SettingsPanel = lazy(() => import("./components/SettingsPanel.jsx"));
 const PracticePanel = lazy(() => import("./components/PracticePanel.jsx"));
@@ -23,6 +23,15 @@ const ACHIEVEMENT_DEFS = [
   { id: "perfect-daily", emoji: "✨", labelKey: "achvPerfectDaily", descKey: "achvPerfectDailyDesc" },
 ];
 
+const MODES = [
+  { id: "free", emoji: "🏃", labelKey: "modeFree", descKey: "modeDescFree" },
+  { id: "timed", emoji: "⏱️", labelKey: "modeTimed", descKey: "modeDescTimed" },
+  { id: "daily", emoji: "📅", labelKey: "modeDaily", descKey: "modeDescDaily" },
+  { id: "error-review", emoji: "🔁", labelKey: "modeError", descKey: "modeDescError" },
+];
+
+const ACHV_COLLAPSE_KEY = "dmm-achv-collapsed";
+
 export default function App() {
   const { currentTheme, setCurrentTheme, isDark, toggleTheme } = useTheme();
   const { lang, toggleLang } = useLocale();
@@ -32,8 +41,39 @@ export default function App() {
   const [questionCount, setQuestionCount] = createSignal(10);
   const [selectedMode, setSelectedMode] = createSignal("free");
   const [newAchvToast, setNewAchvToast] = createSignal("");
+  const [achvOpen, setAchvOpen] = createSignal(
+    (() => { try { return localStorage.getItem(ACHV_COLLAPSE_KEY) !== "1"; } catch { return true; } })()
+  );
 
   const practice = usePractice();
+
+  // 支持 manifest 快捷方式 / 分享链接带参进入：?mode=daily 直接开始练习。
+  // 只消费白名单内的值，非法值忽略；读完即从地址栏移除，避免刷新后重复触发。
+  onMount(() => {
+    try {
+      const wanted = new URLSearchParams(window.location.search).get("mode");
+      const valid = ["free", "timed", "daily", "error-review"];
+      if (wanted && valid.includes(wanted)) {
+        setSelectedMode(wanted);
+        const type = localStorage.getItem("dmm-type") || "two-digit-addsub";
+        if (wanted !== "error-review" || loadErrorBank().length > 0) {
+          practice.startPractice(wanted, { questionType: type, count: questionCount() });
+          setPage("practice");
+        }
+      }
+      if (wanted) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("mode");
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      }
+    } catch { /* 参数解析失败不影响正常启动 */ }
+  });
+
+  const toggleAchv = () => {
+    const next = !achvOpen();
+    setAchvOpen(next);
+    try { localStorage.setItem(ACHV_COLLAPSE_KEY, next ? "0" : "1"); } catch {}
+  };
 
   // track new achievements
   createEffect(() => {
@@ -56,8 +96,20 @@ export default function App() {
     const type = questionType();
     localStorage.setItem("dmm-type", type);
     const mode = selectedMode();
+    // 错题本为空时进入「错题重练」会得到空状态，留在首页并提示
+    if (mode === "error-review" && errorBankCount() === 0) return;
     const opts = { questionType: type, count: questionCount() };
     practice.startPractice(mode, opts);
+    setPage("practice");
+  };
+
+  const handleStartMode = (mode) => {
+    setSelectedMode(mode);
+    // 错题本为空时进入「错题重练」会得到空状态，留在首页并提示
+    if (mode === "error-review" && errorBankCount() === 0) return;
+    const type = questionType();
+    localStorage.setItem("dmm-type", type);
+    practice.startPractice(mode, { questionType: type, count: questionCount() });
     setPage("practice");
   };
 
@@ -77,144 +129,235 @@ export default function App() {
     setPage("practice");
   };
 
-  // ── daily challenge share card ──
-  const [showShareCard, setShowShareCard] = createSignal(false);
-
-  const stats = () => {
-    const s = loadStatsHistory();
-    return s.length > 0 ? s[s.length - 1] : null;
+  /* ── 首页统计（只读 localStorage，不改变逻辑） ── */
+  const stats = () => loadStatsHistory();
+  const totalSessions = () => stats().length;
+  const totalQuestions = () => stats().reduce((s, x) => s + (x.total || 0), 0);
+  const overallAcc = () => {
+    const list = stats();
+    const total = list.reduce((s, x) => s + (x.total || 0), 0);
+    const correct = list.reduce((s, x) => s + (x.correct || 0), 0);
+    return total > 0 ? Math.round((correct / total) * 100) : 0;
   };
+  const streakDays = () => loadStreakDays().length;
+  const dailyDone = () => loadStreakDays().includes(new Date().toISOString().slice(0, 10));
+  const errorBankCount = () => loadErrorBank().length;
+  const unlockedCount = () => loadAchievements().length;
 
-  const mockGlobalAvg = () => {
-    // Mock: 72-88% based on time of day
-    const base = 72 + (new Date().getHours() % 10);
-    return Math.min(base + Math.floor(Math.random() * 10), 95);
-  };
-
-  const mockPercentile = () => {
-    const acc = practice.answered() > 0 ? (practice.correct() / practice.answered()) : 0;
-    const base = acc * 100;
-    return Math.min(base + Math.floor(Math.random() * 15), 99);
+  /* 日期走 i18n：英文界面不能出现「月 / 日」 */
+  const dateLabel = () => {
+    const d = new Date();
+    try {
+      if (lang() === "en") {
+        return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(d);
+      }
+      return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+    } catch {
+      return d.toLocaleDateString();
+    }
   };
 
   return (
-    <div class="glass-panel" onKeyDown={(e) => {
-      if (e.key === "Enter" && page() === "practice" && !practice.inputDisabled()) practice.submitAnswer();
-      else if (e.key === "Enter" && page() === "practice" && !practice.nextDisabled()) practice.nextQuestion();
-    }}>
+    <div
+      class="glass-panel"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && page() === "practice" && !practice.inputDisabled()) practice.submitAnswer();
+        else if (e.key === "Enter" && page() === "practice" && !practice.nextDisabled()) practice.nextQuestion();
+      }}
+    >
       <Header
         isDark={isDark()}
         onToggleTheme={toggleTheme}
         lang={lang()}
         onToggleLang={toggleLang}
+        page={page()}
+        onBack={() => setPage("settings")}
       />
 
       {/* ── Achievement Toast ── */}
       <Show when={newAchvToast()}>
-        <div class="achv-toast">
+        <div class="achv-toast" role="status" aria-live="polite">
           <span class="achv-toast-text">{newAchvToast()}</span>
         </div>
       </Show>
 
-      {/* ── Achievement Panel (enhanced with progress) ── */}
-      <div class="section-card achv-panel">
-        <div class="section-title">{t(lang(), "achvTitle")}</div>
-        <div class="achv-grid">
-          <For each={ACHIEVEMENT_DEFS}>
-            {(achv) => {
-              const unlocked = loadAchievements().find((a) => a.id === achv.id);
-              // Calculate progress for each achievement
-              const stats = loadStatsHistory();
-              const lastStat = stats[stats.length - 1];
-              const totalSessions = stats.length;
-              let progress = 0, maxProgress = 1;
-              if (achv.id === "streak-7") {
-                const streakDays = loadStreakDays();
-                progress = Math.min(streakDays.length || 0, 7);
-                maxProgress = 7;
-              } else if (achv.id === "speed-star") {
-                const timedSessions = stats.filter(s => s.mode === "timed");
-                const best = Math.max(...timedSessions.map(s => s.correct || 0), 0);
-                progress = Math.min(best, 30);
-                maxProgress = 30;
-              } else if (achv.id === "perfectionist") {
-                const perfectSessions = stats.filter(s => s.accuracy === 1 && s.total >= 10).length;
-                progress = Math.min(perfectSessions, 1);
-                maxProgress = 1;
-              } else if (achv.id === "steady") {
-                const bestStreak = Math.max(...stats.map(s => s.maxStreak || 0), 0);
-                progress = Math.min(bestStreak, 20);
-                maxProgress = 20;
-              } else if (achv.id === "night-owl") {
-                const nightSessions = stats.filter(s => {
-                  const h = new Date(s.date).getHours();
-                  return h >= 23 || h < 5;
-                }).length;
-                progress = Math.min(nightSessions, 1);
-                maxProgress = 1;
-              } else if (achv.id === "lightning") {
-                const timedSessions = stats.filter(s => s.mode === "timed");
-                const best = timedSessions.filter(s => s.avgTime < 3).length;
-                progress = Math.min(best, 1);
-                maxProgress = 1;
-              } else if (achv.id === "perfect-daily") {
-                const dailySessions = stats.filter(s => s.mode === "daily" && s.accuracy === 1);
-                progress = Math.min(dailySessions.length, 1);
-                maxProgress = 1;
-              } else if (achv.id === "collector") {
-                const allOtherIds = ["streak-7","speed-star","night-owl","perfectionist","steady","lightning","perfect-daily"];
-                const allUnlocked = allOtherIds.every(id => loadAchievements().find(a => a.id === id));
-                progress = allUnlocked ? 1 : 0;
-                maxProgress = 1;
-              }
-              const pct = Math.min((progress / maxProgress) * 100, 100);
-              return (
-                <div class="achv-card" classList={{ unlocked: !!unlocked }}>
-                  <span class="achv-emoji">{unlocked ? achv.emoji : "🔒"}</span>
-                  <span class="achv-name">{t(lang(), achv.labelKey)}</span>
-                  <span class="achv-desc">{t(lang(), achv.descKey)}</span>
-                  <Show when={!unlocked && maxProgress > 1}>
-                    <div class="achv-progress-bar">
-                      <div class="achv-progress-fill" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span class="achv-progress-text">{progress}/{maxProgress}</span>
-                  </Show>
-                </div>
-              );
-            }}
-          </For>
-        </div>
-      </div>
-
-      {/* ── Progress Dashboard (on settings page, before settings) ── */}
-      <Show when={page() === "settings" && loadStatsHistory().length > 0}>
-        <div class="section-card">
-          <div class="section-title">{t(lang(), "statsTitle")}</div>
-          <ProgressDashboard lang={lang()} />
-        </div>
-      </Show>
-
-      {/* ── Settings Page ── */}
+      {/* ══════════════ 设置 / 首页 ══════════════ */}
       <Show when={page() === "settings"}>
+        {/* ── Hero ── */}
+        <section class="hero" aria-label={t(lang(), "appTitle")}>
+          <span class="hero-eyebrow">
+            📅 {dateLabel()} · {t(lang(), "appSubtitle")}
+          </span>
+          <h1 class="hero-title">
+            {t(lang(), "heroTitlePre")}<em>{t(lang(), "heroTitleEm")}</em>{t(lang(), "heroTitlePost")}
+          </h1>
+          <p class="hero-sub">{t(lang(), "heroSub")}</p>
+
+          {/* 今日挑战 —— 一键直达 */}
+          <Show
+            when={!dailyDone()}
+            fallback={
+              <button class="btn-primary" onClick={() => handleStartMode("daily")}>
+                {t(lang(), "dailyDoneBtn")}
+              </button>
+            }
+          >
+            <button class="btn-primary" onClick={() => handleStartMode("daily")}>
+              {t(lang(), "heroDailyBtn")}
+            </button>
+          </Show>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="hero-stat-value">{streakDays()}</span>
+              <span class="hero-stat-label">{t(lang(), "heroStatStreak")}</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-value">{overallAcc()}<small>%</small></span>
+              <span class="hero-stat-label">{t(lang(), "heroStatAcc")}</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-value">{totalQuestions()}</span>
+              <span class="hero-stat-label">{t(lang(), "heroStatQuestions")}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 模式选择 ── */}
+        <section class="section-card">
+          <div class="section-title">{t(lang(), "modeLabel")}</div>
+          <div class="mode-group" role="radiogroup" aria-label={t(lang(), "modeLabel")}>
+            <For each={MODES}>
+              {(m) => (
+                <button
+                  class="mode-chip"
+                  classList={{ active: selectedMode() === m.id }}
+                  role="radio"
+                  aria-checked={selectedMode() === m.id}
+                  onClick={() => setSelectedMode(m.id)}
+                >
+                  <span class="mode-chip-title">{t(lang(), m.labelKey)}</span>
+                  <span class="mode-chip-desc">{t(lang(), m.descKey)}</span>
+                </button>
+              )}
+            </For>
+          </div>
+          <Show when={selectedMode() === "error-review" && errorBankCount() === 0}>
+            <p class="hero-sub" style={{ "margin-top": "12px" }}>
+              {t(lang(), "noErrorsHint")}
+            </p>
+          </Show>
+        </section>
+
+        {/* ── 题型 / 数量 / 主题 ── */}
         <Suspense fallback={<SkeletonPage />}>
-        <SettingsPanel
-          questionType={questionType()}
-          onTypeChange={setQuestionType}
-          count={questionCount()}
-          onCountChange={setQuestionCount}
-          currentTheme={currentTheme()}
-          onThemeChange={setCurrentTheme}
-          selectedMode={selectedMode()}
-          onModeChange={setSelectedMode}
-          lang={lang()}
-        />
-        <button class="btn-primary" onClick={handleStart}>
-          🚀 {t(lang(), "startBtn")}
-        </button>
-        </Suspense>
+          <SettingsPanel
+            questionType={questionType()}
+            onTypeChange={setQuestionType}
+            count={questionCount()}
+            onCountChange={setQuestionCount}
+            currentTheme={currentTheme()}
+            onThemeChange={setCurrentTheme}
+            selectedMode={selectedMode()}
+            onModeChange={setSelectedMode}
+            lang={lang()}
+            hideModeGroup
+          />        </Suspense>
+
+        <div class="cta-sticky">
+          <button class="btn-primary" onClick={handleStart}>
+            {t(lang(), "startBtn")}
+          </button>
+        </div>
+
+        {/* ── 学习进度 ── */}
+        <Show when={totalSessions() > 0}>
+          <div class="section-card">
+            <div class="section-title">{t(lang(), "statsTitle")}</div>
+            <ProgressDashboard lang={lang()} />
+          </div>
+        </Show>
       </Show>
 
-      {/* ── Practice Page ── */}
+      {/* ── Achievement Panel ── */}
+      <Show when={page() === "settings"}>
+        <div class="section-card achv-panel">
+          <button
+            class="section-title achv-toggle"
+            onClick={toggleAchv}
+            aria-expanded={achvOpen()}
+          >
+            <span>{t(lang(), "achvTitle")} · {unlockedCount()}/{ACHIEVEMENT_DEFS.length}</span>
+            <span class="achv-toggle-caret" aria-hidden="true">{achvOpen() ? "▾" : "▸"}</span>
+          </button>
+          <Show when={achvOpen()}>
+            <div class="achv-grid">
+              <For each={ACHIEVEMENT_DEFS}>
+                {(achv) => {
+                  const unlocked = loadAchievements().find((a) => a.id === achv.id);
+                  // Calculate progress for each achievement
+                  const achvStats = loadStatsHistory();
+                  let progress = 0, maxProgress = 1;
+                  if (achv.id === "streak-7") {
+                    const days = loadStreakDays();
+                    progress = Math.min(days.length || 0, 7);
+                    maxProgress = 7;
+                  } else if (achv.id === "speed-star") {
+                    const timedSessions = achvStats.filter(s => s.mode === "timed");
+                    const best = Math.max(...timedSessions.map(s => s.correct || 0), 0);
+                    progress = Math.min(best, 30);
+                    maxProgress = 30;
+                  } else if (achv.id === "perfectionist") {
+                    const perfectSessions = achvStats.filter(s => s.accuracy === 1 && s.total >= 10).length;
+                    progress = Math.min(perfectSessions, 1);
+                    maxProgress = 1;
+                  } else if (achv.id === "steady") {
+                    const bestStreak = Math.max(...achvStats.map(s => s.maxStreak || 0), 0);
+                    progress = Math.min(bestStreak, 20);
+                    maxProgress = 20;
+                  } else if (achv.id === "night-owl") {
+                    const nightSessions = achvStats.filter(s => {
+                      const h = new Date(s.date).getHours();
+                      return h >= 23 || h < 5;
+                    }).length;
+                    progress = Math.min(nightSessions, 1);
+                    maxProgress = 1;
+                  } else if (achv.id === "lightning") {
+                    const timedSessions = achvStats.filter(s => s.mode === "timed");
+                    const best = timedSessions.filter(s => s.avgTime < 3).length;
+                    progress = Math.min(best, 1);
+                    maxProgress = 1;
+                  } else if (achv.id === "perfect-daily") {
+                    const dailySessions = achvStats.filter(s => s.mode === "daily" && s.accuracy === 1);
+                    progress = Math.min(dailySessions.length, 1);
+                    maxProgress = 1;
+                  } else if (achv.id === "collector") {
+                    const allOtherIds = ["streak-7","speed-star","night-owl","perfectionist","steady","lightning","perfect-daily"];
+                    const allUnlocked = allOtherIds.every(id => loadAchievements().find(a => a.id === id));
+                    progress = allUnlocked ? 1 : 0;
+                    maxProgress = 1;
+                  }
+                  const pct = Math.min((progress / maxProgress) * 100, 100);
+                  return (
+                    <div class="achv-card" classList={{ unlocked: !!unlocked }}>
+                      <span class="achv-emoji">{unlocked ? achv.emoji : "🔒"}</span>
+                      <span class="achv-name">{t(lang(), achv.labelKey)}</span>
+                      <span class="achv-desc">{t(lang(), achv.descKey)}</span>
+                      <Show when={!unlocked && maxProgress > 1}>
+                        <div class="achv-progress-bar">
+                          <div class="achv-progress-fill" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span class="achv-progress-text">{progress}/{maxProgress}</span>
+                      </Show>
+                    </div>
+                  );
+                }}
+              </For>
+            </div>
+          </Show>
+        </div>
+      </Show>
+
+      {/* ══════════════ 练习 ══════════════ */}
       <Show when={page() === "practice"}>
         <Suspense fallback={<SkeletonPage />}>
         <PracticePanel
@@ -241,7 +384,7 @@ export default function App() {
         </Suspense>
       </Show>
 
-      {/* ── Results Page ── */}
+      {/* ══════════════ 结果 ══════════════ */}
       <Show when={page() === "results"}>
         <Suspense fallback={<SkeletonPage />}>
         <StatsPanel
@@ -285,55 +428,15 @@ export default function App() {
         {/* 本地统计面板 */}
         <LeaderboardPanel lang={lang()} />
 
-        {/* Daily Challenge extras */}
-        <Show when={practice.mode() === "daily"}>
-          <div class="section-card daily-extras">
-            <div class="section-title">{t(lang(), "dailyTitle")}</div>
-            <div class="daily-stats-row">
-              <div class="daily-stat">
-                <span class="daily-stat-label">{t(lang(), "dailyGlobalAvg")}</span>
-                <span class="daily-stat-value">{mockGlobalAvg()}%</span>
-              </div>
-              <div class="daily-stat">
-                <span class="daily-stat-label">{t(lang(), "dailyYourRank")}</span>
-                <span class="daily-stat-value">Top {mockPercentile()}%</span>
-              </div>
-            </div>
-            <button class="btn-secondary" onClick={() => setShowShareCard(!showShareCard())}>
-              {t(lang(), "dailyShareCard")}
-            </button>
-            <Show when={showShareCard()}>
-              <div class="share-card" id="shareCard">
-                <div class="share-card-header">🧮 {t(lang(), "dailyTitle")}</div>
-                <div class="share-card-stats">
-                  <div class="share-stat">
-                    <span class="share-stat-label">{t(lang(), "accuracy")}</span>
-                    <span class="share-stat-value">{practice.answered() > 0 ? Math.round((practice.correct() / practice.answered()) * 100) : 0}%</span>
-                  </div>
-                  <div class="share-stat">
-                    <span class="share-stat-label">{t(lang(), "correctQ")}</span>
-                    <span class="share-stat-value">{practice.correct()}/{practice.answered()}</span>
-                  </div>
-                  <div class="share-stat">
-                    <span class="share-stat-label">{t(lang(), "dailyStars")}</span>
-                    <span class="share-stat-value">{'⭐'.repeat(Math.min(Math.ceil((practice.answered() > 0 ? practice.correct() / practice.answered() : 0) * 5), 5))}</span>
-                  </div>
-                </div>
-                <div class="share-card-date">{new Date().toLocaleDateString()}</div>
-              </div>
-            </Show>
-          </div>
-        </Show>
-
         <div class="btn-row" style="margin-top: 14px;">
-          <button class="btn-primary" onClick={handleRetry}>🔄 {t(lang(), "retryBtn")}</button>
+          <button class="btn-primary" onClick={handleRetry}>{t(lang(), "retryBtn")}</button>
           <Show when={loadErrorBank().length > 0}>
             <button class="btn-secondary" onClick={handleRetryErrors}>
-              🔁 {t(lang(), "retryErrorsBtn")}
+              {t(lang(), "retryErrorsBtn")}
             </button>
           </Show>
           <button class="btn-secondary" onClick={() => setPage("settings")}>
-            ⚙️ {t(lang(), "settingsTitle")}
+            {t(lang(), "settingsTitle")}
           </button>
         </div>
         </Suspense>
@@ -379,11 +482,11 @@ function ConfettiOverlay() {
     id: i,
     left: Math.random() * 100,
     delay: Math.random() * 0.5,
-    color: ["#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff", "#ff6b9d"][Math.floor(Math.random() * 5)],
+    color: ["#DC4C1F", "#E0A83C", "#2E7D5B", "#3F5BA9", "#7A4E9E"][Math.floor(Math.random() * 5)],
     size: 6 + Math.random() * 8,
   }));
   return (
-    <div class="confetti-overlay">
+    <div class="confetti-overlay" aria-hidden="true">
       <For each={particles}>
         {(p) => (
           <div

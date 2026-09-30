@@ -1,5 +1,7 @@
 import { createSignal, createEffect, onCleanup } from "solid-js";
 import { randInt, formatAnswer, generateQuestion } from "../lib/math.js";
+import { t } from "../lib/i18n.js";
+import { playCorrect, playWrong, playFinish, speakQuestion, stopSpeaking } from "../lib/feedback.js";
 
 /* ── seeded PRNG (mulberry32) for daily challenges ── */
 function mulberry32(a) {
@@ -17,6 +19,11 @@ function getDailySeed() {
 }
 
 /* ── deterministic question for daily challenge ── */
+function getLang() {
+  const saved = localStorage.getItem("math-lang");
+  return saved || "zh";
+}
+
 /* ── localStorage helpers ── */
 const ERRORS_KEY = "dmm-error-bank";
 const STATS_KEY = "dmm-stats-history";
@@ -47,20 +54,21 @@ export function loadStreakDays() {
   return loadJSON(STREAK_KEY, []);
 }
 
-function getExplanation(q) {
+function getExplanation(q, lang) {
   const { a, b, op, answer, hint, display } = q;
+  const L = lang || getLang();
   const ans = formatAnswer(answer);
   // Special types
-  if (op === "补") return `100 - ${a} = ${ans}，因为 ${a} + ${ans} = 100`;
+  if (op === "补") return t(L, "explainMake100", a, ans);
   if (op === "+...") return display ? `${display} = ${ans}` : `${a} + ... = ${ans}`;
   if (op === "±") return display ? `${display} = ${ans}` : `${a} ± ... = ${ans}`;
-  if (op === "≈") return `${display || (a+' × '+b)} ≈ ${ans}${hint ? '（' + hint + '）' : ''}`;
+  if (op === "≈") return t(L, "explainEstimate", display || `${a} × ${b}`, ans, hint ? t(L, "explainEstimateHint", hint) : "");
   // Standard operators
   switch (op) {
-    case "+": return `${a} + ${b} = ${ans}，因为 ${a} 加 ${b} 等于 ${ans}`;
-    case "-": return `${a} - ${b} = ${ans}，因为 ${b} 加 ${ans} 等于 ${a}`;
-    case "×": return `${a} × ${b} = ${ans}，因为 ${a} 个 ${b} 相加等于 ${ans}`;
-    case "÷": return `${a} ÷ ${b} = ${ans}，因为 ${b} × ${ans} = ${a}`;
+    case "+": return t(L, "explainAdd", a, b, ans);
+    case "-": return t(L, "explainSub", a, b, ans);
+    case "×": return t(L, "explainMul", a, b, ans);
+    case "÷": return t(L, "explainDiv", a, b, ans);
     default: return `${a} ${op} ${b} = ${ans}`;
   }
 }
@@ -95,7 +103,7 @@ export default function usePractice() {
   let timerId = null;
 
   // ── helpers ──
-    function clearTimer() {
+  function clearTimer() {
     if (timerId) { clearInterval(timerId); timerId = null; }
   }
 
@@ -160,7 +168,8 @@ export default function usePractice() {
       setWrongQuestions(errors);
       setTotal(errors.length);
       if (errors.length === 0) {
-        setFeedbackText("🎉 No errors from last session!");
+        // i18n：原先这里是硬编码英文，中文界面下会漏出英文
+        setFeedbackText(t(getLang(), "noErrors"));
         setIsFinished(true);
         return;
       }
@@ -190,6 +199,8 @@ export default function usePractice() {
     setFeedbackText("");
     setFeedbackType(null);
     setExplanation("");
+    // 语音播报（默认关闭，由 prefs 决定）
+    speakQuestion(q, getLang());
   }
 
   // ── pick from error review queue ──
@@ -235,8 +246,11 @@ export default function usePractice() {
       setWrongQuestions((prev) => [...prev, wrongQ]);
 
       // Show explanation
-      setExplanation(getExplanation(q));
+      setExplanation(getExplanation(q, getLang()));
     }
+
+    // 音效（默认关闭）
+    if (isCorrect) playCorrect(); else playWrong();
 
     setTotalTime((v) => v + elapsed);
     if (elapsed < minTime()) setMinTime(elapsed);
@@ -254,10 +268,11 @@ export default function usePractice() {
     ]);
 
     const answerText = formatAnswer(q.answer);
+    const lang = getLang();
     setFeedbackText(
       isCorrect
-        ? `✓ Correct! (${answerText}, ${elapsed.toFixed(2)}s)`
-        : `✗ Wrong! Answer: ${answerText} (${elapsed.toFixed(2)}s)`
+        ? `${t(lang, "correctFeedback")} (${answerText}, ${t(lang, "timeLabel", elapsed.toFixed(2))})`
+        : `${t(lang, "wrongFeedback")} ${t(lang, "answerLabel", answerText)} (${t(lang, "timeLabel", elapsed.toFixed(2))})`
     );
     setFeedbackType(isCorrect ? "correct" : "wrong");
 
@@ -284,6 +299,10 @@ export default function usePractice() {
     setSubmitDisabled(true);
     setNextDisabled(true);
     setIsFinished(true);
+
+    // 收尾：停语音 + 结算音效
+    stopSpeaking();
+    playFinish();
 
     // Save stats
     const acc = answered() > 0 ? correct() / answered() : 0;
@@ -389,7 +408,7 @@ export default function usePractice() {
   }
 
   // ── cleanup ──
-  onCleanup(() => clearTimer());
+  onCleanup(() => { clearTimer(); stopSpeaking(); });
 
   return {
     // state

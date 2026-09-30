@@ -5,8 +5,12 @@ description = "口算天天练 — 100以内加减乘除交互式心算练习"
 authors = ["you"]
 edition = "2021"
 
+[[bin]]
+name = "math-daily"
+path = "src/main.rs"
+
 [lib]
-name = "math_daily"
+name = "math_daily_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

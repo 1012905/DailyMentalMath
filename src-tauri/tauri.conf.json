@@ -26,7 +26,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi", "apk", "app"],
+    "targets": ["nsis", "msi", "app", "dmg"],
     "icon": ["icons/icon.png", "icons/icon.ico"],
     "windows": {
       "wix": {
@@ -39,7 +39,7 @@
     "android": {
       "minSdkVersion": 24
     },
-    "ios": {
+    "iOS": {
       "minimumSystemVersion": "15.0"
     }
   },

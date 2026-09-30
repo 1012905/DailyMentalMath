@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img"
+     aria-label="口算天天练">
+  <title>口算天天练</title>
+  <!-- 暖纸感底 #FBF7F0 + 朱红强调 #E4572E + 浓墨黑 #1A1714 · 几何除号 -->
+  <rect x="0" y="0" width="512" height="512" rx="115" fill="#FBF7F0"/>
+  <rect x="27" y="27" width="458" height="458" rx="95" fill="none"
+        stroke="#E4572E" stroke-width="38"/>
+  <circle cx="256" cy="174" r="37" fill="#1A1714"/>
+  <rect x="23" y="217" width="466" height="39" rx="19" fill="#1A1714"/>
+  <circle cx="256" cy="338" r="37" fill="#1A1714"/>
+</svg>

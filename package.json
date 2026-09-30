@@ -9,7 +9,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "icons": "python scripts/gen-icons.py",
+    "fonts": "python scripts/fetch-fonts.py",
+    "deploy:pages": "bash scripts/deploy-pages.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

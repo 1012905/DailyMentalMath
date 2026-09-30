@@ -1,6 +1,8 @@
 # --- Node.js / Vite ---
 node_modules/
 dist/
+# 并行验证用的隔离构建目录（npm run build 之外的 --outDir）
+dist-*/
 dev-dist/
 *.local
 *.log
@@ -30,6 +32,9 @@ src-tauri/target/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# --- 本地 AI 助手工具产生的元数据（不入库） ---
+.reasonix/
 
 # --- 测试覆盖率 ---
 coverage/

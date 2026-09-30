@@ -1,0 +1,56 @@
+{
+  "id": "./",
+  "name": "口算天天练 · DailyMentalMath",
+  "short_name": "口算天天练",
+  "description": "100以内加减乘除 · 17题型 · 4模式。纯离线的口算心算训练，数据只存在本机。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#FBF7F0",
+  "background_color": "#FBF7F0",
+  "categories": ["education", "productivity", "kids"],
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "每日挑战",
+      "short_name": "每日挑战",
+      "url": "./?mode=daily",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "自由练习",
+      "short_name": "自由练习",
+      "url": "./?mode=free",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

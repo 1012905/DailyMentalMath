@@ -3,7 +3,8 @@ import { loadStatsHistory } from "../hooks/usePractice.js";
 import { t } from "../lib/i18n.js";
 
 export default function ProgressDashboard(props) {
-  const { lang } = props;
+  // props 是响应式的：必须用 getter 读取，不能解构出快照
+  const lang = () => props.lang;
 
   const stats = () => loadStatsHistory();
 
@@ -46,6 +47,15 @@ export default function ProgressDashboard(props) {
 
   const maxTrend = () => Math.max(...accuracyTrend(), 0.01);
 
+  /* 模式名（不带 emoji 的短名，用于分布 chip） */
+  const MODE_NAME_KEYS = {
+    free: "modeNameFree",
+    timed: "modeNameTimed",
+    daily: "modeNameDaily",
+    "error-review": "modeNameError",
+  };
+  const modeName = (mode) => t(lang(), MODE_NAME_KEYS[mode] || "modeNameFree");
+
   // ── Calculate stats by operator (infer from session data) ──
   // Since we don't have per-operator breakdown, estimate from mode
   const modeBreakdown = () => {
@@ -65,7 +75,7 @@ export default function ProgressDashboard(props) {
       <div class="progress-summary">
         <div class="progress-stat">
           <div class="progress-stat-value">{totalSessions()}</div>
-          <div class="progress-stat-label">{t(lang(), "totalSessions") || "练习次数"}</div>
+          <div class="progress-stat-label">{t(lang(), "leaderboardTotalSessions")}</div>
         </div>
         <div class="progress-stat">
           <div class="progress-stat-value">{totalQuestions()}</div>
@@ -86,7 +96,7 @@ export default function ProgressDashboard(props) {
         <Show when={recentAccuracy() !== null}>
           <div class="progress-stat">
             <div class="progress-stat-value">{(recentAccuracy() * 100).toFixed(0)}%</div>
-            <div class="progress-stat-label">{t(lang(), "recentAccuracy") || "近5次正确率"}</div>
+            <div class="progress-stat-label">{t(lang(), "recentAccuracy")}</div>
           </div>
         </Show>
       </div>
@@ -95,7 +105,7 @@ export default function ProgressDashboard(props) {
       <Show when={accuracyTrend().length >= 2}>
         <div class="section-card" style="padding:var(--space-12);margin-bottom:0;">
           <div class="section-title" style="margin-bottom:var(--space-8);font-size:var(--text-small);">
-            {t(lang(), "accuracyTrend") || "正确率趋势"}
+            {t(lang(), "accuracyTrend")}
           </div>
           <div class="chart-bars" style="height:60px;">
             <For each={accuracyTrend()}>
@@ -116,14 +126,14 @@ export default function ProgressDashboard(props) {
       <Show when={modeBreakdown().length > 0}>
         <div class="section-card" style="padding:var(--space-12);margin-bottom:0;">
           <div class="section-title" style="margin-bottom:var(--space-8);font-size:var(--text-small);">
-            {t(lang(), "modeBreakdown") || "模式分布"}
+            {t(lang(), "modeBreakdown")}
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;">
             <For each={modeBreakdown()}>
               {(m) => (
                 <span class="weak-op-chip high">
-                  {m.mode === "free" ? "🏃" : m.mode === "timed" ? "⏱️" : m.mode === "daily" ? "📅" : "🔁"}
-                  {" "}{m.count}题
+                  {modeName(m.mode)}
+                  {" · "}{m.count}{t(lang(), "unitQuestions")}
                 </span>
               )}
             </For>

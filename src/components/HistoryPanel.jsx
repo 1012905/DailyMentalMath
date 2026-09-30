@@ -16,7 +16,7 @@ export default function HistoryPanel(props) {
               <span class="icon">{h.correct ? "✅" : "❌"}</span>
               <span class="detail">
                 {h.question} = <b>{formatAnswer(h.correctAns)}</b>
-                {!h.correct ? `（${t(props.lang, "answerLabel", h.userAns)}）` : ""}
+                {!h.correct ? t(props.lang, "wrongAnswerNote", h.userAns) : ""}
               </span>
               <span class="time">{formatTime(h.elapsed)}s</span>
             </div>

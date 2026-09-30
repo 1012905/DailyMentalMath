@@ -5,6 +5,9 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
+  // 相对路径：构建产物可直接托管在任意子路径下
+  // （GitHub Pages 项目站点位于 /<repo>/ 而非域名根目录）
+  base: "./",
   plugins: [solid(), viteSingleFile()],
   clearScreen: false,
 

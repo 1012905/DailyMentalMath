@@ -114,23 +114,31 @@ function genMultiAdd() {
 
 /* ── 7. 混合加减 ── */
 function genMixedAddSub() {
-  const count = randInt(3, 5);
-  const nums = [randInt(10, 999)];
-  const ops = [];
-  for (let i = 1; i < count; i++) {
-    const op = Math.random() < 0.5 ? "+" : "-";
-    const n = randInt(1, i < 3 ? 99 : 999);
-    ops.push(op);
-    nums.push(n);
+  // 生成过程必须保证每一步中间结果非负：
+  // 否则会出现「10 - 99 - 99 = -188」这类负数题，超出心算练习范围。
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const count = randInt(3, 5);
+    const nums = [randInt(10, 999)];
+    const ops = [];
+    for (let i = 1; i < count; i++) {
+      ops.push(Math.random() < 0.5 ? "+" : "-");
+      nums.push(randInt(1, i < 3 ? 99 : 999));
+    }
+    let result = nums[0];
+    let display = String(nums[0]);
+    let valid = true;
+    for (let i = 1; i < nums.length; i++) {
+      if (ops[i - 1] === "+") result += nums[i];
+      else result -= nums[i];
+      if (result < 0) { valid = false; break; }
+      display += ` ${ops[i - 1]} ${nums[i]}`;
+    }
+    if (!valid) continue;
+    return { display, a: nums[0], b: nums[1], op: "±", answer: result, multiOps: ops, multiNums: nums };
   }
-  let result = nums[0];
-  let display = String(nums[0]);
-  for (let i = 1; i < nums.length; i++) {
-    if (ops[i - 1] === "+") result += nums[i];
-    else result -= nums[i];
-    display += ` ${ops[i-1]} ${nums[i]}`;
-  }
-  return { display, a: nums[0], b: nums[1], op: "±", answer: result, multiOps: ops, multiNums: nums };
+  // 兜底：极小概率连续 50 次失败时，退化为一个必然合法的加法题
+  const a = randInt(10, 99), b = randInt(10, 99);
+  return { display: `${a} + ${b}`, a, b, op: "+", answer: a + b };
 }
 
 /* ── 8. 两位数 × 一位数 ── */
@@ -166,18 +174,29 @@ function genTwoDigitXTwo() {
 
 /* ── 13. 三位数 ÷ 一位数 ── */
 function genThreeDigitDivOne() {
+  // 结果保持一位数（心算友好），先定除数 b，再从 b 能取到的商区间里抽 k，
+  // 使 b × k 落在 [100, 999] 内 —— 该区间对 b ∈ [2,9] 恒非空，不会死循环。
   const b = randInt(2, 9);
-  const k = randInt(11, 99); // 结果
-  const a = b * k; // 被除数
+  const kMin = Math.max(2, Math.ceil(100 / b));
+  const kMax = Math.min(9, Math.floor(999 / b));
+  const k = randInt(kMin, Math.max(kMin, kMax));
+  const a = b * k;
   return { display: `${a} ÷ ${b}`, a, b, op: "÷", answer: k };
 }
 
 /* ── 14. 三位数 ÷ 两位数 ── */
 function genThreeDigitDivTwo() {
-  const b = randInt(10, 49);
-  const k = randInt(2, 9); // 结果
-  const a = b * k;
-  return { display: `${a} ÷ ${b}`, a, b, op: "÷", answer: k };
+  // 除数与商都保持较小（心算友好），乘积必然落在三位数区间
+  const b = randInt(10, 20);
+  const k = randInt(5, 9);
+  const a = b * k;                 // ∈ [50, 180]
+  if (a >= 100 && a <= 999) {
+    return { display: `${a} ÷ ${b}`, a, b, op: "÷", answer: k };
+  }
+  // a < 100 时把商抬到刚好进入三位数
+  const k2 = Math.ceil(100 / b);   // b ∈ [10,20] → k2 ∈ [5,10]
+  const a2 = b * k2;
+  return { display: `${a2} ÷ ${b}`, a: a2, b, op: "÷", answer: k2 };
 }
 
 /* ── 15. 乘法估算 ── */
@@ -200,17 +219,22 @@ function genMultEstimate() {
 /* ── 16. 五位数 ÷ 三位数 ── */
 function genFiveDigitDivThree() {
   const b = randInt(100, 999);
-  const k = randInt(10, 99); // 结果
+  // 保证被除数是五位数 [10000, 99999]
+  const k = randInt(Math.ceil(10000 / b), Math.floor(99999 / b));
+  if (k < 2) return genFiveDigitDivThree();
   const a = b * k;
+  if (a < 10000 || a > 99999) return genFiveDigitDivThree();
   return { display: `${a} ÷ ${b}`, a, b, op: "÷", answer: k };
 }
 
-/* ── 17. 三位数 ÷ 四位数（结果为小数） ── */
+/* ── 17. 四位数 ÷ 三位数（整除） ── */
 function genThreeDigitDivFour() {
-  const k = randInt(1, 50); // 倍数
   const b = randInt(100, 999); // 除数（三位数）
-  const a = b * k; // 被除数（四位数）
-  // 确保 a 是四位数
+  // 保证被除数是四位数 [1000, 9999]
+  const kMin = Math.ceil(1000 / b), kMax = Math.floor(9999 / b);
+  if (kMax < kMin) return genThreeDigitDivFour();
+  const k = randInt(kMin, kMax);
+  const a = b * k;
   if (a < 1000 || a > 9999) return genThreeDigitDivFour();
   return { display: `${a} ÷ ${b}`, a, b, op: "÷", answer: k };
 }
